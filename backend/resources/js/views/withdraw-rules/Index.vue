@@ -74,7 +74,7 @@
                                 <th class="px-5 py-3.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">提现方式</th>
                                 <th class="px-5 py-3.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">金额范围</th>
                                 <th class="px-5 py-3.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">手续费</th>
-                                <th class="px-5 py-3.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">日限额/次</th>
+                                <th class="px-5 py-3.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">日/月限额</th>
                                 <th class="px-5 py-3.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">需审核</th>
                                 <th class="px-5 py-3.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">处理天数</th>
                                 <th class="px-5 py-3.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">状态</th>
@@ -127,11 +127,22 @@
                                     </div>
                                 </td>
                                 <td class="px-5 py-4">
-                                    <div class="text-sm text-gray-700">
-                                        <div v-if="rule.daily_max_amount > 0">¥{{ formatNumber(rule.daily_max_amount) }}</div>
-                                        <div v-else class="text-gray-400">不限</div>
-                                        <div v-if="rule.daily_max_count > 0" class="text-xs text-gray-500">
-                                            每日 {{ rule.daily_max_count }} 次
+                                    <div class="text-sm text-gray-700 space-y-1">
+                                        <div class="flex items-center gap-1">
+                                            <span class="inline-block w-8 text-xs text-gray-500">日:</span>
+                                            <span v-if="rule.daily_max_amount > 0">¥{{ formatNumber(rule.daily_max_amount) }}</span>
+                                            <span v-else class="text-gray-400">不限</span>
+                                            <span v-if="rule.daily_max_count > 0" class="text-xs text-gray-500">
+                                                ({{ rule.daily_max_count }}次)
+                                            </span>
+                                        </div>
+                                        <div class="flex items-center gap-1">
+                                            <span class="inline-block w-8 text-xs text-gray-500">月:</span>
+                                            <span v-if="rule.monthly_max_amount > 0">¥{{ formatNumber(rule.monthly_max_amount) }}</span>
+                                            <span v-else class="text-gray-400">不限</span>
+                                            <span v-if="rule.monthly_max_count > 0" class="text-xs text-gray-500">
+                                                ({{ rule.monthly_max_count }}次)
+                                            </span>
                                         </div>
                                     </div>
                                 </td>
@@ -515,7 +526,7 @@
                 </form>
 
                 <div v-if="showDetailModal && detailData" class="space-y-5">
-                    <div class="grid grid-cols-2 gap-4 text-sm">
+                    <div class="grid grid-cols-1 gap-4 text-sm">
                         <div class="flex justify-between py-2 border-b border-gray-100">
                             <span class="text-gray-500">规则名称</span>
                             <span class="font-medium text-gray-900">{{ detailData.name }}</span>
