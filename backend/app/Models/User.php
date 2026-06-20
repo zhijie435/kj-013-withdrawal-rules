@@ -1,0 +1,131 @@
+<?php
+
+namespace App\Models;
+
+use App\Enums\UserType;
+use App\Models\Concerns\HasVisibilityScope;
+use Database\Factories\UserFactory;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Hidden;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notifiable;
+use Laravel\Sanctum\HasApiTokens;
+use Spatie\Permission\Traits\HasRoles;
+
+#[Fillable([
+    'name', 'email', 'phone', 'password', 'avatar', 'user_type',
+    'supplier_id', 'distributor_id', 'is_active',
+    'country_code', 'language', 'timezone', 'accessible_markets',
+])]
+#[Hidden(['password', 'remember_token'])]
+class User extends Authenticatable
+{
+    /** @use HasFactory<UserFactory> */
+    use HasFactory, Notifiable, HasApiTokens, HasRoles, SoftDeletes;
+
+    protected function casts(): array
+    {
+        return [
+            'email_verified_at' => 'datetime',
+            'password' => 'hashed',
+            'is_active' => 'boolean',
+            'accessible_markets' => 'array',
+            'user_type' => UserType::class,
+        ];
+    }
+
+    public function supplier(): BelongsTo
+    {
+        return $this->belongsTo(Supplier::class);
+    }
+
+    public function distributor(): BelongsTo
+    {
+        return $this->belongsTo(Distributor::class);
+    }
+
+    public function orders(): HasMany
+    {
+        return $this->hasMany(Order::class, 'created_by');
+    }
+
+    public function payments(): HasMany
+    {
+        return $this->hasMany(Payment::class, 'created_by');
+    }
+
+    public function withdrawRequests(): HasMany
+    {
+        return $this->hasMany(WithdrawRequest::class);
+    }
+
+    public function withdrawAccounts(): HasMany
+    {
+        return $this->hasMany(UserWithdrawAccount::class);
+    }
+
+    public function auditedWithdrawals(): HasMany
+    {
+        return $this->hasMany(WithdrawRequest::class, 'auditor_id');
+    }
+
+    public function wallet()
+    {
+        return $this->hasOne(Wallet::class);
+    }
+
+    public function wallets(): HasMany
+    {
+        return $this->hasMany(Wallet::class);
+    }
+
+    public function isPlatform(): bool
+    {
+        return $this->user_type === UserType::PLATFORM;
+    }
+
+    public function isSupplier(): bool
+    {
+        return $this->user_type === UserType::SUPPLIER;
+    }
+
+    public function isDistributor(): bool
+    {
+        return $this->user_type === UserType::DISTRIBUTOR;
+    }
+
+    public function isRegionalAgent(): bool
+    {
+        return $this->isDistributor() && $this->distributor?->type === 'regional_agent';
+    }
+
+    public function isWholesaler(): bool
+    {
+        return $this->isDistributor() && $this->distributor?->type === 'wholesaler';
+    }
+
+    public function hasMarketAccess(int $marketId): bool
+    {
+        if ($this->isPlatform()) {
+            return true;
+        }
+
+        if (empty($this->accessible_markets)) {
+            return false;
+        }
+
+        return in_array($marketId, $this->accessible_markets);
+    }
+
+    public function getUserTypeEnum(): ?UserType
+    {
+        $raw = $this->getRawOriginal('user_type') ?? $this->user_type;
+
+        return $raw ? UserType::tryFrom($raw) : null;
+    }
+}

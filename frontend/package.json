@@ -1,0 +1,28 @@
+{
+  "name": "shearerline-withdrawal-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Shearerline跨境S2B2B平台 - 提现规则模块前端",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "lint": "eslint . --ext .vue,.js --fix"
+  },
+  "dependencies": {
+    "vue": "^2.7.14",
+    "vue-router": "^3.6.5",
+    "vuex": "^3.6.2",
+    "axios": "^1.6.5",
+    "element-ui": "^2.15.14",
+    "@element-plus/icons-vue": "^2.3.1"
+  },
+  "devDependencies": {
+    "vite": "^4.5.1",
+    "vite-plugin-vue2": "^2.0.3",
+    "vue-template-compiler": "^2.7.14",
+    "sass": "^1.69.7",
+    "eslint": "^8.56.0",
+    "eslint-plugin-vue": "^8.7.1"
+  }
+}
