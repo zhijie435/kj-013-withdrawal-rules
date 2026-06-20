@@ -39,6 +39,16 @@ class WithdrawRule extends Model
         ];
     }
 
+    protected static function getGlobalEnabled(): bool
+    {
+        return (bool) ShearerlineConfig::getWithdrawRule('enabled', true);
+    }
+
+    public static function isGloballyEnabled(): bool
+    {
+        return self::getGlobalEnabled();
+    }
+
     public function method(): BelongsTo
     {
         return $this->belongsTo(WithdrawMethod::class, 'withdraw_method_id');
@@ -66,7 +76,9 @@ class WithdrawRule extends Model
 
     public function isEnabled(): bool
     {
-        return (bool) $this->status && $this->method?->isEnabled();
+        return self::getGlobalEnabled()
+            && (bool) $this->status
+            && $this->method?->isEnabled();
     }
 
     public function calculateFee(float $amount): float

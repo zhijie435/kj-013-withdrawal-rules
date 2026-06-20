@@ -1,13 +1,32 @@
 <template>
     <div class="space-y-6">
         <div class="flex items-center justify-between">
-            <div>
-                <h1 class="text-2xl font-bold text-gray-900">提现规则配置</h1>
-                <p class="mt-1 text-sm text-gray-500">管理系统提现功能的各项参数配置，所有提现申请将按此规则执行</p>
-            </div>
-        </div>
+                    <div>
+                        <h1 class="text-2xl font-bold text-gray-900">提现规则配置</h1>
+                        <p class="mt-1 text-sm text-gray-500">管理系统提现功能的各项参数配置，所有提现申请将按此规则执行</p>
+                    </div>
+                </div>
 
-        <div v-if="loading" class="flex justify-center py-12">
+                <div
+                    class="rounded-xl border border-amber-200 bg-amber-50 p-4 flex items-start gap-3"
+                >
+                    <svg class="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    <div class="flex-1">
+                        <div class="font-medium text-amber-800">配置会自动同步至所有提现规则</div>
+                        <div class="text-sm text-amber-700 mt-1">
+                            修改以下参数会同步更新全部提现规则（金额范围、手续费、审核设置、处理时效、允许的提现方式）。
+                            如需针对特定用户等级设置差异化规则，请前往
+                            <router-link :to="{ name: 'withdraw-rules.index' }" class="underline font-medium hover:text-amber-900">
+                                提现规则管理
+                            </router-link>
+                            页面。
+                        </div>
+                    </div>
+                </div>
+
+                <div v-if="loading" class="flex justify-center py-12">
             <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-indigo-600 border-t-transparent"></div>
         </div>
 

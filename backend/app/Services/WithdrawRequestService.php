@@ -75,6 +75,10 @@ class WithdrawRequestService
 
     public function createRequest(array $data, User $user): WithdrawRequest
     {
+        if (!\App\Models\WithdrawRule::isGloballyEnabled()) {
+            throw BusinessException::withCode('提现功能已临时关闭，请稍后再试', 'WITHDRAW_GLOBALLY_DISABLED');
+        }
+
         $amount = (float) $data['amount'];
         $methodId = (int) $data['withdraw_method_id'];
         $accountId = $data['account_id'] ?? null;

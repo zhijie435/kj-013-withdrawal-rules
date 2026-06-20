@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Enums\UserType;
 use App\Exceptions\BusinessException;
 use App\Models\Distributor;
+use App\Models\ShearerlineConfig;
 use App\Models\WithdrawMethod;
 use App\Models\WithdrawRule;
 use App\Models\User;
@@ -29,15 +30,29 @@ class WithdrawRuleService
             $query->where('status', $params['status']);
         }
 
-        return $query->orderBy('id', 'desc')->paginate($params['per_page'] ?? 20);
+        $pagination = $query->orderBy('id', 'desc')->paginate($params['per_page'] ?? 20);
+
+        $pagination->getCollection()->transform(function (WithdrawRule $rule) {
+            $rule->setAttribute('globally_enabled', WithdrawRule::isGloballyEnabled());
+            $rule->setAttribute('is_effectively_enabled', $rule->isEnabled());
+            return $rule;
+        });
+
+        return $pagination;
     }
 
     public function getEnabledRules(?string $userLevel = null): \Illuminate\Database\Eloquent\Collection
     {
+        if (!WithdrawRule::isGloballyEnabled()) {
+            return collect();
+        }
+
         return WithdrawRule::enabled()
             ->when($userLevel, fn (Builder $q) => $q->where('user_level', $userLevel))
             ->with(['method'])
-            ->get();
+            ->get()
+            ->filter(fn (WithdrawRule $r) => $r->isEnabled())
+            ->values();
     }
 
     public function getRule(int $id): WithdrawRule
@@ -150,6 +165,10 @@ class WithdrawRuleService
 
     public function validateWithdrawAmount(User $user, int $methodId, float $amount): array
     {
+        if (!WithdrawRule::isGloballyEnabled()) {
+            throw BusinessException::withCode('提现功能已临时关闭，请稍后再试', 'WITHDRAW_GLOBALLY_DISABLED');
+        }
+
         $rule = $this->getApplicableRule($user, $methodId);
 
         if (!$rule) {
@@ -157,7 +176,13 @@ class WithdrawRuleService
         }
 
         if (!$rule->isEnabled()) {
-            throw BusinessException::withCode('该提现方式暂未开放', 'WITHDRAW_METHOD_DISABLED');
+            if (!WithdrawRule::isGloballyEnabled()) {
+                throw BusinessException::withCode('提现功能已临时关闭，请稍后再试', 'WITHDRAW_GLOBALLY_DISABLED');
+            }
+            if (!$rule->method?->isEnabled()) {
+                throw BusinessException::withCode('该提现方式暂未开放', 'WITHDRAW_METHOD_DISABLED');
+            }
+            throw BusinessException::withCode('该提现规则暂未启用', 'WITHDRAW_RULE_DISABLED');
         }
 
         if (!$rule->isValidAmount($amount)) {

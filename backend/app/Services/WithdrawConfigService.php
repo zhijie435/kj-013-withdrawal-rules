@@ -3,9 +3,64 @@
 namespace App\Services;
 
 use App\Models\ShearerlineConfig;
+use App\Models\WithdrawMethod;
+use App\Models\WithdrawRule;
+use Illuminate\Support\Facades\DB;
 
 class WithdrawConfigService
 {
+    protected array $syncFieldMap = [
+        'min_amount' => 'min_amount',
+        'max_amount' => 'max_amount',
+        'daily_limit' => 'daily_max_amount',
+        'monthly_limit' => 'monthly_max_amount',
+        'fee_rate' => 'fee_rate',
+        'fee_min' => 'min_fee',
+        'fee_max' => 'max_fee',
+        'processing_days' => 'processing_days',
+        'require_audit' => 'requires_audit',
+    ];
+
+    protected function getSyncableUpdates(array $data): array
+    {
+        $updates = [];
+
+        foreach ($this->syncFieldMap as $globalKey => $ruleKey) {
+            if (array_key_exists($globalKey, $data)) {
+                $value = $data[$globalKey];
+                if ($globalKey === 'fee_rate') {
+                    $value = bcdiv((string) $value, '100', 4);
+                }
+                $updates[$ruleKey] = $value;
+            }
+        }
+
+        return $updates;
+    }
+
+    protected function syncGlobalConfigToRules(array $data): void
+    {
+        $updates = $this->getSyncableUpdates($data);
+        if (empty($updates)) {
+            return;
+        }
+
+        DB::transaction(function () use ($updates, $data) {
+            WithdrawRule::query()->update($updates);
+
+            if (isset($data['allow_methods'])) {
+                $allowedMethods = $data['allow_methods'];
+                WithdrawMethod::query()->each(function (WithdrawMethod $method) use ($allowedMethods) {
+                    $shouldBeEnabled = in_array($method->code, $allowedMethods, true);
+                    if ((bool) $method->status !== $shouldBeEnabled) {
+                        $method->status = $shouldBeEnabled;
+                        $method->save();
+                    }
+                });
+            }
+        });
+    }
+
     public function getAll(bool $onlyPublic = false): array
     {
         $withdrawConfig = ShearerlineConfig::getWithdrawConfig($onlyPublic);
@@ -22,9 +77,19 @@ class WithdrawConfigService
 
     public function getAllWithDefaults(bool $onlyPublic = false): array
     {
+        $config = $this->getAll($onlyPublic);
+
+        $synced = [];
+        foreach ($this->syncFieldMap as $globalKey => $ruleKey) {
+            $synced[$globalKey] = $config[$globalKey] ?? null;
+        }
+
         return [
-            'data' => $this->getAll($onlyPublic),
+            'data' => $config,
             'defaults' => ShearerlineConfig::getWithdrawDefaults(),
+            'sync_fields' => array_keys($this->syncFieldMap),
+            'synced_values' => $synced,
+            'global_enabled' => $config['enabled'] ?? true,
         ];
     }
 
@@ -71,15 +136,19 @@ class WithdrawConfigService
             'quick_amounts' => '快捷提现金额选项',
         ];
 
-        foreach ($data as $key => $value) {
-            $configKey = "withdraw.{$key}";
-            ShearerlineConfig::setValue($configKey, $value, [
-                'type' => $typeMap[$key] ?? 'string',
-                'category' => 'withdraw',
-                'description' => $descriptionMap[$key] ?? null,
-                'is_public' => true,
-            ]);
-        }
+        DB::transaction(function () use ($data, $typeMap, $descriptionMap) {
+            foreach ($data as $key => $value) {
+                $configKey = "withdraw.{$key}";
+                ShearerlineConfig::setValue($configKey, $value, [
+                    'type' => $typeMap[$key] ?? 'string',
+                    'category' => 'withdraw',
+                    'description' => $descriptionMap[$key] ?? null,
+                    'is_public' => true,
+                ]);
+            }
+
+            $this->syncGlobalConfigToRules($data);
+        });
 
         return $this->getAll();
     }

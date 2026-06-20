@@ -7,13 +7,51 @@
             </div>
             <button
                 @click="showCreateModal"
-                class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium flex items-center gap-2"
+                :disabled="!globallyEnabled"
+                class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                 </svg>
                 添加规则
             </button>
+        </div>
+
+        <div
+            v-if="!globallyEnabled"
+            class="rounded-xl border border-red-200 bg-red-50 p-4 flex items-start gap-3"
+        >
+            <svg class="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+            </svg>
+            <div class="flex-1">
+                <div class="font-medium text-red-800">提现功能已全局关闭</div>
+                <div class="text-sm text-red-700 mt-1">
+                    所有提现规则当前均不生效。请前往「
+                    <router-link :to="{ name: 'withdraw-config.index' }" class="underline font-medium hover:text-red-900">
+                        提现规则配置
+                    </router-link>
+                    」页面开启「启用提现功能」开关。
+                </div>
+            </div>
+        </div>
+
+        <div
+            v-else
+            class="rounded-xl border border-green-200 bg-green-50 p-4 flex items-start gap-3"
+        >
+            <svg class="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            <div class="flex-1">
+                <div class="font-medium text-green-800">提现功能运行正常</div>
+                <div class="text-sm text-green-700 mt-1">
+                    全局配置与规则列表同步生效。修改全局参数会自动同步到所有提现规则，
+                    <router-link :to="{ name: 'withdraw-config' }" class="underline font-medium hover:text-green-900">
+                        点击查看全局配置 →
+                    </router-link>
+                </div>
+            </div>
         </div>
 
         <div class="bg-white rounded-xl border border-gray-200 p-4">
@@ -160,20 +198,34 @@
                                     <span class="text-sm text-gray-700">T+{{ rule.processing_days }}</span>
                                 </td>
                                 <td class="px-5 py-4">
-                                    <button
-                                        @click="toggleStatus(rule)"
-                                        :class="[
-                                            'relative inline-flex h-6 w-11 items-center rounded-full transition-colors',
-                                            rule.status ? 'bg-indigo-600' : 'bg-gray-200'
-                                        ]"
-                                    >
-                                        <span
+                                    <div class="space-y-1.5">
+                                        <div v-if="rule.is_effectively_enabled && globallyEnabled" class="flex items-center gap-1.5">
+                                            <span class="relative inline-flex h-2 w-2 rounded-full bg-green-500"></span>
+                                            <span class="text-xs text-green-700 font-medium">生效中</span>
+                                        </div>
+                                        <div v-else class="flex items-center gap-1.5">
+                                            <span class="relative inline-flex h-2 w-2 rounded-full bg-gray-400"></span>
+                                            <span class="text-xs text-gray-600 font-medium">
+                                                {{ !globallyEnabled ? '全局关闭' : (rule.status ? '方式禁用' : '规则禁用') }}
+                                            </span>
+                                        </div>
+                                        <button
+                                            @click="toggleStatus(rule)"
+                                            :disabled="!globallyEnabled"
                                             :class="[
-                                                'inline-block h-4 w-4 transform rounded-full bg-white transition-transform',
-                                                rule.status ? 'translate-x-6' : 'translate-x-1'
+                                                'relative inline-flex h-6 w-11 items-center rounded-full transition-colors',
+                                                rule.status ? 'bg-indigo-600' : 'bg-gray-200',
+                                                !globallyEnabled ? 'opacity-50 cursor-not-allowed' : ''
                                             ]"
-                                        />
-                                    </button>
+                                        >
+                                            <span
+                                                :class="[
+                                                    'inline-block h-4 w-4 transform rounded-full bg-white transition-transform',
+                                                    rule.status ? 'translate-x-6' : 'translate-x-1'
+                                                ]"
+                                            />
+                                        </button>
+                                    </div>
                                 </td>
                                 <td class="px-5 py-4">
                                     <div class="flex items-center gap-2">
@@ -630,6 +682,7 @@ const showFormModal = ref(false);
 const showDetailModal = ref(false);
 const editingRule = ref(null);
 const detailData = ref(null);
+const globallyEnabled = ref(true);
 
 const filters = reactive({
     user_level: '',
@@ -717,6 +770,9 @@ const loadRules = async () => {
         const result = data.data || data;
         if (result.data) {
             rules.value = result.data;
+            if (result.data.length > 0 && result.data[0].globally_enabled !== undefined) {
+                globallyEnabled.value = !!result.data[0].globally_enabled;
+            }
             pagination.value = {
                 current_page: result.current_page,
                 last_page: result.last_page,
@@ -725,6 +781,9 @@ const loadRules = async () => {
             };
         } else {
             rules.value = result;
+            if (result.length > 0 && result[0].globally_enabled !== undefined) {
+                globallyEnabled.value = !!result[0].globally_enabled;
+            }
         }
     } catch (e) {
         console.error(e);
