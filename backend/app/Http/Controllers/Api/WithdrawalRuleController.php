@@ -97,6 +97,7 @@ class WithdrawalRuleController extends Controller
             'daily_limit' => 'nullable|numeric|min:0',
             'monthly_limit' => 'nullable|numeric|min:0',
             'fee_rate' => 'nullable|numeric|between:0,1',
+            'fixed_fee' => 'nullable|numeric|min:0',
             'fee_min' => 'nullable|numeric|min:0',
             'fee_max' => 'nullable|numeric|min:0',
             'settlement_days' => 'nullable|integer|min:0',

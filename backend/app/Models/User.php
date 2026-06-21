@@ -19,7 +19,7 @@ use Spatie\Permission\Traits\HasRoles;
 
 #[Fillable([
     'name', 'email', 'phone', 'password', 'avatar', 'user_type',
-    'supplier_id', 'distributor_id', 'is_active',
+    'supplier_id', 'distributor_id', 'is_active', 'level',
     'country_code', 'language', 'timezone', 'accessible_markets',
 ])]
 #[Hidden(['password', 'remember_token'])]
@@ -27,6 +27,9 @@ class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable, HasApiTokens, HasRoles, SoftDeletes;
+
+    const ROLE_USER = 'user';
+    const ROLE_ADMIN = 'admin';
 
     protected function casts(): array
     {
@@ -36,6 +39,7 @@ class User extends Authenticatable
             'is_active' => 'boolean',
             'accessible_markets' => 'array',
             'user_type' => UserType::class,
+            'level' => 'string',
         ];
     }
 
@@ -74,14 +78,14 @@ class User extends Authenticatable
         return $this->hasMany(WithdrawRequest::class, 'auditor_id');
     }
 
-    public function wallet()
-    {
-        return $this->hasOne(Wallet::class);
-    }
-
     public function wallets(): HasMany
     {
         return $this->hasMany(Wallet::class);
+    }
+
+    public function wallet(string $currency = 'CNY'): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(Wallet::class)->where('currency', $currency);
     }
 
     public function isPlatform(): bool

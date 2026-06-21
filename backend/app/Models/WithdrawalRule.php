@@ -21,6 +21,7 @@ class WithdrawalRule extends Model
         'daily_limit',
         'monthly_limit',
         'fee_rate',
+        'fixed_fee',
         'fee_min',
         'fee_max',
         'settlement_days',
@@ -44,6 +45,7 @@ class WithdrawalRule extends Model
         'daily_limit' => 'decimal:2',
         'monthly_limit' => 'decimal:2',
         'fee_rate' => 'decimal:4',
+        'fixed_fee' => 'decimal:2',
         'fee_min' => 'decimal:2',
         'fee_max' => 'decimal:2',
         'approval_threshold' => 'decimal:2',
@@ -103,12 +105,12 @@ class WithdrawalRule extends Model
 
     public function calculateFee(float $amount): float
     {
-        $fee = $amount * $this->fee_rate;
+        $fee = $amount * $this->fee_rate + $this->fixed_fee;
 
-        if ($fee < $this->fee_min) {
+        if ($this->fee_min > 0 && $fee < $this->fee_min) {
             $fee = $this->fee_min;
         }
-        if ($fee > $this->fee_max && $this->fee_max > 0) {
+        if ($this->fee_max > 0 && $fee > $this->fee_max) {
             $fee = $this->fee_max;
         }
 

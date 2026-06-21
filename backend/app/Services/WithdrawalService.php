@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\UserType;
 use App\Exceptions\Withdrawal\DailyLimitExceededException;
 use App\Exceptions\Withdrawal\InsufficientBalanceException;
 use App\Exceptions\Withdrawal\InvalidStatusTransitionException;
@@ -489,8 +490,8 @@ class WithdrawalService
             ->get()
             ->keyBy('withdrawal_method');
 
-        $userCount = User::where('role', User::ROLE_USER)->count();
-        $activeUserCount = User::where('role', User::ROLE_USER)
+        $userCount = User::whereNotIn('user_type', [UserType::PLATFORM, UserType::SUPPLIER])->count();
+        $activeUserCount = User::whereNotIn('user_type', [UserType::PLATFORM, UserType::SUPPLIER])
             ->where('is_active', true)
             ->count();
 

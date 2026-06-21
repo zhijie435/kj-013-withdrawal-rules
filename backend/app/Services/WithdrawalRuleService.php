@@ -166,7 +166,7 @@ class WithdrawalRuleService
 
         $query->update([
             'is_active' => false,
-            'updated_by' => auth()->id(),
+            'updated_by' => auth()->id() ?? null,
         ]);
     }
 }

@@ -168,8 +168,10 @@
                                 </td>
                                 <td class="px-4 py-3.5">
                                     <div class="text-sm text-gray-700">
-                                        <div v-if="rule.fee_rate > 0" class="font-medium">
-                                            {{ (rule.fee_rate * 100).toFixed(2) }}%
+                                        <div v-if="rule.fee_rate > 0 || (rule.fixed_fee && rule.fixed_fee > 0)" class="font-medium">
+                                            <span v-if="rule.fee_rate > 0">{{ (rule.fee_rate * 100).toFixed(2) }}%</span>
+                                            <span v-if="rule.fee_rate > 0 && rule.fixed_fee > 0"> + </span>
+                                            <span v-if="rule.fixed_fee > 0">{{ formatMoney(rule.fixed_fee, rule.currency) }}</span>
                                         </div>
                                         <div v-else class="text-green-600 font-medium">免费</div>
                                         <div class="text-xs text-gray-500 mt-0.5">
@@ -518,10 +520,17 @@
                                 <p class="text-xs text-gray-500 mt-1">例：0.5% 填 0.005</p>
                             </div>
                             <div>
-                                <label class="block text-xs font-medium text-gray-600 mb-1">&nbsp;</label>
-                                <div class="text-xs text-indigo-600 bg-indigo-50 p-2 rounded">
-                                    <div>提现 ¥1,000 预估手续费: <strong>{{ formatMoney(calcFee(1000), form.currency) }}</strong></div>
-                                    <div>提现 ¥10,000 预估手续费: <strong>{{ formatMoney(calcFee(10000), form.currency) }}</strong></div>
+                                <label class="block text-xs font-medium text-gray-600 mb-1">固定手续费 (元)</label>
+                                <div class="relative">
+                                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">{{ form.currency }}</span>
+                                    <input
+                                        v-model.number="form.fixed_fee"
+                                        type="number"
+                                        step="0.01"
+                                        min="0"
+                                        placeholder="0 表示无固定费用"
+                                        class="w-full rounded border-gray-300 border pl-14 pr-3 py-2 text-sm"
+                                    />
                                 </div>
                             </div>
                             <div>
@@ -548,6 +557,15 @@
                                         min="0"
                                         class="w-full rounded border-gray-300 border pl-14 pr-3 py-2 text-sm"
                                     />
+                                </div>
+                            </div>
+                            <div class="col-span-2">
+                                <div class="text-xs text-indigo-600 bg-indigo-50 p-2 rounded">
+                                    <div class="grid grid-cols-3 gap-4">
+                                        <div>提现 ¥1,000 预估手续费: <strong>{{ formatMoney(calcFee(1000), form.currency) }}</strong></div>
+                                        <div>提现 ¥10,000 预估手续费: <strong>{{ formatMoney(calcFee(10000), form.currency) }}</strong></div>
+                                        <div>提现 ¥50,000 预估手续费: <strong>{{ formatMoney(calcFee(50000), form.currency) }}</strong></div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -709,6 +727,7 @@
                         <h4 class="text-sm font-semibold text-gray-700 mb-3">💸 手续费配置</h4>
                         <div class="grid grid-cols-2 gap-x-6 gap-y-1 text-sm">
                             <DetailItem label="手续费率" :value="(detailData.fee_rate * 100).toFixed(2) + '%'" />
+                            <DetailItem label="固定手续费" :value="formatMoney(detailData.fixed_fee || 0, detailData.currency)" />
                             <DetailItem label="最低手续费" :value="formatMoney(detailData.fee_min, detailData.currency)" />
                             <DetailItem label="最高手续费" :value="detailData.fee_max > 0 ? formatMoney(detailData.fee_max, detailData.currency) : '不限'" />
                         </div>
@@ -815,6 +834,7 @@ const form = reactive({
     daily_limit: 0,
     monthly_limit: 0,
     fee_rate: 0,
+    fixed_fee: 0,
     fee_min: 0,
     fee_max: 0,
     settlement_days: 1,
@@ -866,7 +886,7 @@ const formatDate = (str) => {
 
 const calcFee = (amount) => {
     if (!amount) return 0;
-    let fee = amount * (form.fee_rate || 0);
+    let fee = amount * (form.fee_rate || 0) + (form.fixed_fee || 0);
     if (form.fee_min > 0 && fee < form.fee_min) fee = form.fee_min;
     if (form.fee_max > 0 && fee > form.fee_max) fee = form.fee_max;
     return Math.round(fee * 100) / 100;
@@ -953,6 +973,7 @@ const resetForm = () => {
         daily_limit: 0,
         monthly_limit: 0,
         fee_rate: 0,
+        fixed_fee: 0,
         fee_min: 0,
         fee_max: 0,
         settlement_days: 1,
@@ -997,6 +1018,7 @@ const editRule = (rule) => {
         daily_limit: rule.daily_limit,
         monthly_limit: rule.monthly_limit,
         fee_rate: rule.fee_rate,
+        fixed_fee: rule.fixed_fee || 0,
         fee_min: rule.fee_min,
         fee_max: rule.fee_max,
         settlement_days: rule.settlement_days,
