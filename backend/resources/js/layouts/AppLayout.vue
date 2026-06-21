@@ -213,8 +213,9 @@ const allMenuItems = [
     { name: 'withdraw.list', label: '提现记录', icon: IconWithdrawList, permission: null },
     { name: 'withdraw-accounts.index', label: '提现账户管理', icon: IconWithdrawMethod, permission: null },
     { name: 'withdraw-methods.index', label: '提现方式管理', icon: IconPayment, permission: 'user.manage' },
-    { name: 'withdraw-rules.index', label: '提现规则管理', icon: IconWithdrawRule, permission: 'user.manage' },
+    { name: 'withdrawal-rules.index', label: '提现规则管理', icon: IconWithdrawRule, permission: 'user.manage' },
     { name: 'withdraw-config.index', label: '提现全局配置', icon: IconWithdrawConfig, permission: 'user.manage' },
+    { name: 'withdraw-rules.index', label: '提现规则管理(旧)', icon: IconWithdrawRule, permission: 'user.manage' },
     { name: 'users.index', label: '用户管理', icon: IconUser, permission: 'user.manage' },
 ];
 
@@ -244,7 +245,8 @@ const pageTitle = computed(() => {
         'withdraw.list': '提现记录',
         'withdraw-accounts.index': '提现账户管理',
         'withdraw-methods.index': '提现方式管理',
-        'withdraw-rules.index': '提现规则管理',
+        'withdrawal-rules.index': '提现规则管理',
+        'withdraw-rules.index': '提现规则管理(旧)',
         'withdraw-config.index': '提现全局配置',
         'users.index': '用户管理',
     };

@@ -111,6 +111,12 @@ const routes = [
                 path: 'withdraw-rules',
                 name: 'withdraw-rules.index',
                 component: () => import('../views/withdraw-rules/Index.vue'),
+                meta: { permission: 'user.manage', title: '提现规则管理(旧)' },
+            },
+            {
+                path: 'withdrawal-rules',
+                name: 'withdrawal-rules.index',
+                component: () => import('../views/withdrawal-rules/Index.vue'),
                 meta: { permission: 'user.manage', title: '提现规则管理' },
             },
             {
