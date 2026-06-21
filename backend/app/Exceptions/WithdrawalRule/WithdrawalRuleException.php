@@ -1,12 +1,12 @@
 <?php
 
-namespace App\Exceptions\Withdrawal;
+namespace App\Exceptions\WithdrawalRule;
 
 use App\Exceptions\BusinessException;
 
-class WithdrawalException extends BusinessException
+class WithdrawalRuleException extends BusinessException
 {
-    protected string $errorCode = 'WITHDRAWAL_ERROR';
+    protected string $errorCode = 'WITHDRAWAL_RULE_ERROR';
 
     protected int $httpCode = 422;
 

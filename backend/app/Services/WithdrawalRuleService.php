@@ -2,79 +2,84 @@
 
 namespace App\Services;
 
+use App\Exceptions\WithdrawalRule\InvalidWithdrawalAmountException;
+use App\Exceptions\WithdrawalRule\WithdrawalRuleConflictException;
+use App\Exceptions\WithdrawalRule\WithdrawalRuleInUseException;
+use App\Exceptions\WithdrawalRule\WithdrawalRuleNotFoundException;
 use App\Models\WithdrawalRule;
+use App\Repositories\WithdrawalRuleRepository;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 
 class WithdrawalRuleService
 {
-    public function getRuleList(array $params = [])
+    public function __construct(
+        protected WithdrawalRuleRepository $repository
+    ) {
+    }
+
+    public function getRuleList(array $params = []): LengthAwarePaginator
     {
-        $query = WithdrawalRule::with(['creator', 'updater'])
-            ->when(!empty($params['keyword']), function ($q) use ($params) {
-                $q->where(function ($query) use ($params) {
-                    $query->where('name', 'like', "%{$params['keyword']}%")
-                        ->orWhere('code', 'like', "%{$params['keyword']}%")
-                        ->orWhere('description', 'like', "%{$params['keyword']}%");
-                });
-            })
-            ->when(!empty($params['user_level']), function ($q) use ($params) {
-                $q->where(function ($query) use ($params) {
-                    $query->where('user_level', WithdrawalRule::LEVEL_ALL)
-                        ->orWhere('user_level', $params['user_level']);
-                });
-            })
-            ->when(!empty($params['currency']), function ($q) use ($params) {
-                $q->where('currency', $params['currency']);
-            })
-            ->when(!empty($params['withdrawal_method']), function ($q) use ($params) {
-                $q->where('withdrawal_method', $params['withdrawal_method']);
-            })
-            ->when(isset($params['is_active']) && $params['is_active'] !== '', function ($q) use ($params) {
-                $q->where('is_active', $params['is_active']);
-            })
-            ->orderBy('sort_order', 'asc')
-            ->orderBy('id', 'desc');
-
-        $page = $params['page'] ?? 1;
-        $perPage = $params['per_page'] ?? 15;
-
-        return $query->paginate($perPage, ['*'], 'page', $page);
+        return $this->repository->listPaginated($params);
     }
 
     public function getCurrentRule(string $userLevel = 'normal', string $currency = 'CNY', string $method = 'bank_transfer'): ?WithdrawalRule
     {
-        return WithdrawalRule::where('is_active', true)
-            ->where(function ($query) use ($userLevel) {
-                $query->where('user_level', WithdrawalRule::LEVEL_ALL)
-                    ->orWhere('user_level', $userLevel);
-            })
-            ->where('currency', $currency)
-            ->where('withdrawal_method', $method)
-            ->where(function ($query) {
-                $query->whereNull('effective_from')
-                    ->orWhere('effective_from', '<=', now());
-            })
-            ->where(function ($query) {
-                $query->whereNull('effective_to')
-                    ->orWhere('effective_to', '>=', now());
-            })
-            ->orderBy('sort_order', 'asc')
-            ->orderBy('fee_rate', 'asc')
-            ->first();
+        return $this->repository->getApplicableRule($userLevel, $currency, $method);
+    }
+
+    public function getCurrentRuleOrFail(string $userLevel, string $currency, string $method): WithdrawalRule
+    {
+        $rule = $this->getCurrentRule($userLevel, $currency, $method);
+
+        if (!$rule) {
+            throw WithdrawalRuleNotFoundException::for($userLevel, $currency, $method);
+        }
+
+        return $rule;
+    }
+
+    public function getRuleById(int $id): WithdrawalRule
+    {
+        $rule = $this->repository->newModel()
+            ->with(['creator', 'updater'])
+            ->withCount('withdrawals')
+            ->find($id);
+
+        if (!$rule) {
+            throw WithdrawalRuleNotFoundException::byId($id);
+        }
+
+        return $rule;
+    }
+
+    public function getActiveRules(): Collection
+    {
+        return $this->repository->getActiveRules();
     }
 
     public function createRule(array $data, ?int $creatorId = null): WithdrawalRule
     {
         return DB::transaction(function () use ($data, $creatorId) {
-            if (!empty($data['is_active'])) {
-                $this->deactivateConflictingRules(
-                    $data['user_level'] ?? WithdrawalRule::LEVEL_NORMAL,
-                    $data['currency'] ?? 'CNY',
-                    $data['withdrawal_method'] ?? 'bank_transfer'
+            $this->ensureCodeUnique($data['code'] ?? null);
+
+            $isActive = $data['is_active'] ?? false;
+            $userLevel = $data['user_level'] ?? WithdrawalRule::LEVEL_NORMAL;
+            $currency = $data['currency'] ?? 'CNY';
+            $method = $data['withdrawal_method'] ?? 'bank_transfer';
+
+            if ($isActive) {
+                $this->repository->deactivateConflictingRules(
+                    $userLevel,
+                    $currency,
+                    $method,
+                    null,
+                    $creatorId
                 );
             }
 
-            $rule = WithdrawalRule::create(array_merge($data, [
+            $rule = $this->repository->create(array_merge($data, [
                 'created_by' => $creatorId,
                 'updated_by' => $creatorId,
             ]));
@@ -86,21 +91,26 @@ class WithdrawalRuleService
     public function updateRule(WithdrawalRule $rule, array $data, ?int $updaterId = null): WithdrawalRule
     {
         return DB::transaction(function () use ($rule, $data, $updaterId) {
+            if (isset($data['code']) && $data['code'] !== $rule->code) {
+                $this->ensureCodeUnique($data['code']);
+            }
+
             $userLevel = $data['user_level'] ?? $rule->user_level;
             $currency = $data['currency'] ?? $rule->currency;
             $method = $data['withdrawal_method'] ?? $rule->withdrawal_method;
             $isActive = $data['is_active'] ?? $rule->is_active;
 
-            if ($isActive && (
-                $userLevel !== $rule->user_level ||
-                $currency !== $rule->currency ||
-                $method !== $rule->withdrawal_method ||
-                !$rule->is_active
-            )) {
-                $this->deactivateConflictingRules($userLevel, $currency, $method, $rule->id);
+            if ($isActive && $this->hasDimensionChanged($rule, $userLevel, $currency, $method)) {
+                $this->repository->deactivateConflictingRules(
+                    $userLevel,
+                    $currency,
+                    $method,
+                    $rule->id,
+                    $updaterId
+                );
             }
 
-            $rule->update(array_merge($data, [
+            $this->repository->update($rule, array_merge($data, [
                 'updated_by' => $updaterId,
             ]));
 
@@ -110,13 +120,13 @@ class WithdrawalRuleService
 
     public function deleteRule(WithdrawalRule $rule): void
     {
-        if ($rule->withdrawals()->exists()) {
-            throw new \App\Exceptions\Withdrawal\WithdrawalException(
-                '该规则下存在提现记录，无法删除'
-            );
+        $withdrawalCount = $rule->withdrawals()->count();
+
+        if ($withdrawalCount > 0) {
+            throw WithdrawalRuleInUseException::hasWithdrawals($rule->id, $withdrawalCount);
         }
 
-        $rule->delete();
+        $this->repository->delete($rule);
     }
 
     public function toggleActive(WithdrawalRule $rule, ?int $updaterId = null): WithdrawalRule
@@ -125,15 +135,16 @@ class WithdrawalRuleService
             $newStatus = !$rule->is_active;
 
             if ($newStatus) {
-                $this->deactivateConflictingRules(
+                $this->repository->deactivateConflictingRules(
                     $rule->user_level,
                     $rule->currency,
                     $rule->withdrawal_method,
-                    $rule->id
+                    $rule->id,
+                    $updaterId
                 );
             }
 
-            $rule->update([
+            $this->repository->update($rule, [
                 'is_active' => $newStatus,
                 'updated_by' => $updaterId,
             ]);
@@ -142,31 +153,56 @@ class WithdrawalRuleService
         });
     }
 
-    protected function deactivateConflictingRules(string $userLevel, string $currency, string $method, ?int $excludeId = null): void
+    public function calculateFee(float $amount, WithdrawalRule $rule): float
     {
-        $query = WithdrawalRule::where('is_active', true)
-            ->where(function ($q) use ($userLevel) {
-                $q->where('user_level', WithdrawalRule::LEVEL_ALL)
-                    ->orWhere('user_level', $userLevel);
-            })
-            ->where('currency', $currency)
-            ->where('withdrawal_method', $method)
-            ->where(function ($q) {
-                $q->whereNull('effective_from')
-                    ->orWhere('effective_from', '<=', now());
-            })
-            ->where(function ($q) {
-                $q->whereNull('effective_to')
-                    ->orWhere('effective_to', '>=', now());
-            });
+        return $rule->calculateFee($amount);
+    }
+
+    public function validateAmount(float $amount, WithdrawalRule $rule): void
+    {
+        if (!$rule->isValidAmount($amount)) {
+            if ($amount < $rule->min_amount) {
+                throw InvalidWithdrawalAmountException::belowMinimum(
+                    $amount,
+                    $rule->min_amount,
+                    $rule->currency
+                );
+            }
+
+            throw InvalidWithdrawalAmountException::aboveMaximum(
+                $amount,
+                $rule->max_amount,
+                $rule->currency
+            );
+        }
+    }
+
+    protected function ensureCodeUnique(?string $code, ?int $excludeId = null): void
+    {
+        if ($code === null) {
+            return;
+        }
+
+        $query = $this->repository->newModel()->where('code', $code);
 
         if ($excludeId) {
             $query->where('id', '!=', $excludeId);
         }
 
-        $query->update([
-            'is_active' => false,
-            'updated_by' => auth()->id() ?? null,
-        ]);
+        if ($query->exists()) {
+            throw WithdrawalRuleConflictException::codeExists($code);
+        }
+    }
+
+    protected function hasDimensionChanged(
+        WithdrawalRule $rule,
+        string $userLevel,
+        string $currency,
+        string $method
+    ): bool {
+        return $userLevel !== $rule->user_level
+            || $currency !== $rule->currency
+            || $method !== $rule->withdrawal_method
+            || !$rule->is_active;
     }
 }

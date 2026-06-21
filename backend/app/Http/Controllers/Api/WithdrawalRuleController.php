@@ -9,13 +9,14 @@ use Illuminate\Http\Request;
 
 class WithdrawalRuleController extends Controller
 {
-    public function __construct(protected WithdrawalRuleService $service)
-    {
+    public function __construct(
+        protected WithdrawalRuleService $service
+    ) {
     }
 
     public function index(Request $request)
     {
-        $this->authorize('view-withdrawal-rules');
+        $this->authorize('viewAny', WithdrawalRule::class);
 
         $rules = $this->service->getRuleList(array_merge([
             'page' => $request->input('page', 1),
@@ -27,16 +28,16 @@ class WithdrawalRuleController extends Controller
 
     public function current(Request $request)
     {
-        $this->authorize('view-withdrawal-rules');
+        $this->authorize('viewCurrent', WithdrawalRule::class);
 
-        $userLevel = $request->input('user_level', $request->user()->level);
+        $userLevel = $request->input('user_level', $request->user()->level ?? 'normal');
         $currency = $request->input('currency', 'CNY');
         $method = $request->input('withdrawal_method', 'bank_transfer');
 
         $rule = $this->service->getCurrentRule($userLevel, $currency, $method);
 
         if (!$rule) {
-            return $this->respondError('未找到适用的提现规则', 40401, 404);
+            return $this->respondError('未找到适用的提现规则', 'WITHDRAWAL_RULE_NOT_FOUND', 404);
         }
 
         return $this->respond($rule);
@@ -44,21 +45,21 @@ class WithdrawalRuleController extends Controller
 
     public function getStatusOptions()
     {
-        $this->authorize('view-withdrawal-rules');
+        $this->authorize('viewOptions', WithdrawalRule::class);
 
         return $this->respond(WithdrawalRule::getStatusOptions());
     }
 
     public function getLevelOptions()
     {
-        $this->authorize('view-withdrawal-rules');
+        $this->authorize('viewOptions', WithdrawalRule::class);
 
         return $this->respond(WithdrawalRule::getLevelOptions());
     }
 
     public function getMethodOptions()
     {
-        $this->authorize('view-withdrawal-rules');
+        $this->authorize('viewOptions', WithdrawalRule::class);
 
         $options = WithdrawalRule::getMethodOptions();
         $result = [];
@@ -71,7 +72,7 @@ class WithdrawalRuleController extends Controller
 
     public function getCurrencyOptions()
     {
-        $this->authorize('view-withdrawal-rules');
+        $this->authorize('viewOptions', WithdrawalRule::class);
 
         $options = WithdrawalRule::getCurrencyOptions();
         $result = [];
@@ -84,7 +85,7 @@ class WithdrawalRuleController extends Controller
 
     public function store(Request $request)
     {
-        $this->authorize('manage-withdrawal-rules');
+        $this->authorize('create', WithdrawalRule::class);
 
         $validated = $request->validate([
             'name' => 'required|string|max:200',
@@ -120,14 +121,16 @@ class WithdrawalRuleController extends Controller
 
     public function show(WithdrawalRule $rule)
     {
-        $this->authorize('view-withdrawal-rules');
+        $this->authorize('view', $rule);
 
-        return $this->respond($rule->loadCount('withdrawals')->load(['creator', 'updater']));
+        $rule = $this->service->getRuleById($rule->id);
+
+        return $this->respond($rule);
     }
 
     public function update(Request $request, WithdrawalRule $rule)
     {
-        $this->authorize('manage-withdrawal-rules');
+        $this->authorize('update', $rule);
 
         $validated = $request->validate([
             'name' => 'sometimes|string|max:200',
@@ -162,7 +165,7 @@ class WithdrawalRuleController extends Controller
 
     public function destroy(WithdrawalRule $rule)
     {
-        $this->authorize('manage-withdrawal-rules');
+        $this->authorize('delete', $rule);
 
         $this->service->deleteRule($rule);
 
@@ -171,7 +174,7 @@ class WithdrawalRuleController extends Controller
 
     public function toggleActive(Request $request, WithdrawalRule $rule)
     {
-        $this->authorize('manage-withdrawal-rules');
+        $this->authorize('toggleActive', $rule);
 
         $rule = $this->service->toggleActive($rule, $request->user()?->id);
 

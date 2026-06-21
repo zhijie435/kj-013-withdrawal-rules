@@ -6,6 +6,7 @@ use App\Models\CustomsDeclaration;
 use App\Models\Order;
 use App\Models\Payment;
 use App\Models\Shipment;
+use App\Models\WithdrawalRule;
 use App\Observers\CustomsDeclarationObserver;
 use App\Observers\OrderObserver;
 use App\Observers\PaymentObserver;
@@ -13,6 +14,7 @@ use App\Observers\ShipmentObserver;
 use App\Policies\OrderPolicy;
 use App\Policies\PaymentPolicy;
 use App\Policies\ShipmentPolicy;
+use App\Policies\WithdrawalRulePolicy;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 
@@ -33,6 +35,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Order::class, OrderPolicy::class);
         Gate::policy(Payment::class, PaymentPolicy::class);
         Gate::policy(Shipment::class, ShipmentPolicy::class);
+        Gate::policy(WithdrawalRule::class, WithdrawalRulePolicy::class);
     }
 
     protected function registerRepositories(): void

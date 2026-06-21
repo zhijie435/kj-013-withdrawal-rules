@@ -63,6 +63,19 @@ enum WithdrawStatus: string
 
     public function canTransitionTo(self $target): bool
     {
+        return in_array($target->value, $this->allowedTransitionValues(), true);
+    }
+
+    public function allowedTransitions(): array
+    {
+        return array_map(
+            fn (string $value) => self::from($value),
+            $this->allowedTransitionValues()
+        );
+    }
+
+    protected function allowedTransitionValues(): array
+    {
         $transitions = [
             self::PENDING->value => [
                 self::APPROVED->value,
@@ -84,6 +97,11 @@ enum WithdrawStatus: string
             self::CANCELLED->value => [],
         ];
 
-        return in_array($target->value, $transitions[$this->value] ?? [], true);
+        return $transitions[$this->value] ?? [];
+    }
+
+    public function isTerminal(): bool
+    {
+        return $this->isFinal();
     }
 }

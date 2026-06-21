@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -103,6 +104,59 @@ class WithdrawalRule extends Model
         return config('withdrawal.currencies');
     }
 
+    public function scopeActive(Builder $query): Builder
+    {
+        return $query->where('is_active', true);
+    }
+
+    public function scopeInactive(Builder $query): Builder
+    {
+        return $query->where('is_active', false);
+    }
+
+    public function scopeByUserLevel(Builder $query, string $userLevel): Builder
+    {
+        return $query->where(function (Builder $q) use ($userLevel) {
+            $q->where('user_level', self::LEVEL_ALL)
+                ->orWhere('user_level', $userLevel);
+        });
+    }
+
+    public function scopeByCurrency(Builder $query, string $currency): Builder
+    {
+        return $query->where('currency', $currency);
+    }
+
+    public function scopeByMethod(Builder $query, string $method): Builder
+    {
+        return $query->where('withdrawal_method', $method);
+    }
+
+    public function scopeCurrentlyEffective(Builder $query): Builder
+    {
+        return $query->where(function (Builder $q) {
+            $q->whereNull('effective_from')
+                ->orWhere('effective_from', '<=', now());
+        })->where(function (Builder $q) {
+            $q->whereNull('effective_to')
+                ->orWhere('effective_to', '>=', now());
+        });
+    }
+
+    public function scopeKeyword(Builder $query, string $keyword): Builder
+    {
+        return $query->where(function (Builder $q) use ($keyword) {
+            $q->where('name', 'like', "%{$keyword}%")
+                ->orWhere('code', 'like', "%{$keyword}%")
+                ->orWhere('description', 'like', "%{$keyword}%");
+        });
+    }
+
+    public function scopeOrdered(Builder $query): Builder
+    {
+        return $query->orderBy('sort_order', 'asc')->orderBy('id', 'desc');
+    }
+
     public function calculateFee(float $amount): float
     {
         $fee = $amount * $this->fee_rate + $this->fixed_fee;
@@ -144,6 +198,24 @@ class WithdrawalRule extends Model
         }
 
         return true;
+    }
+
+    public function isValidAmount(float $amount): bool
+    {
+        if ($amount < $this->min_amount) {
+            return false;
+        }
+
+        if ($this->max_amount > 0 && $amount > $this->max_amount) {
+            return false;
+        }
+
+        return true;
+    }
+
+    public function requiresApproval(float $amount): bool
+    {
+        return $this->require_approval || $amount >= $this->approval_threshold;
     }
 
     public function withdrawals()
