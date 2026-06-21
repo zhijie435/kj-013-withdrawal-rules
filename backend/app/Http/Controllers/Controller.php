@@ -66,4 +66,48 @@ abstract class Controller extends \Illuminate\Routing\Controller
             'details' => $details,
         ], $code);
     }
+
+    protected function respond(mixed $data = null, string $message = '操作成功', int $code = 200)
+    {
+        return response()->json([
+            'success' => true,
+            'message' => $message,
+            'data' => $data,
+        ], $code);
+    }
+
+    protected function respondPaginated(mixed $paginated, string $message = '操作成功', int $code = 200)
+    {
+        if ($paginated instanceof \Illuminate\Contracts\Pagination\LengthAwarePaginator) {
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'data' => $paginated->items(),
+                'pagination' => [
+                    'current_page' => $paginated->currentPage(),
+                    'last_page' => $paginated->lastPage(),
+                    'per_page' => $paginated->perPage(),
+                    'total' => $paginated->total(),
+                    'from' => $paginated->firstItem(),
+                    'to' => $paginated->lastItem(),
+                ],
+            ], $code);
+        }
+
+        return $this->respond($paginated, $message, $code);
+    }
+
+    protected function respondCreated(mixed $data = null, string $message = '创建成功')
+    {
+        return $this->respond($data, $message, 201);
+    }
+
+    protected function respondError(string $message = '操作失败', string|int $errorCode = 'ERROR', int $code = 400)
+    {
+        return response()->json([
+            'success' => false,
+            'message' => $message,
+            'error_code' => $errorCode,
+        ], $code);
+    }
 }

@@ -7,6 +7,9 @@ use App\Http\Controllers\Api\WalletController;
 use App\Http\Controllers\Api\WithdrawMethodController;
 use App\Http\Controllers\Api\WithdrawRequestController;
 use App\Http\Controllers\Api\WithdrawRuleController;
+use App\Http\Controllers\Api\WithdrawalRuleController;
+use App\Http\Controllers\Api\WithdrawalController;
+use App\Http\Controllers\Api\BankCardController;
 use App\Http\Controllers\Api\UserWithdrawAccountController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\CurrencyRateController;
@@ -164,4 +167,43 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/{withdraw}/fail', [WithdrawRequestController::class, 'fail'])->name('withdrawals.fail');
     });
     Route::apiResource('/withdrawals', WithdrawRequestController::class)->names('withdrawals')->parameters(['withdrawals' => 'withdraw']);
+
+    // ==================== 新版提现模块路由 ====================
+
+    // 银行卡管理
+    Route::prefix('bank-cards')->group(function () {
+        Route::get('/all-active', [BankCardController::class, 'allActive'])->name('bank-cards.all-active');
+        Route::get('/type-options', [BankCardController::class, 'getTypeOptions'])->name('bank-cards.type-options');
+        Route::get('/bank-options', [BankCardController::class, 'getBankOptions'])->name('bank-cards.bank-options');
+        Route::post('/{card}/set-default', [BankCardController::class, 'setDefault'])->name('bank-cards.set-default');
+    });
+    Route::apiResource('/bank-cards', BankCardController::class)->names('bank-cards')->parameters(['bank-cards' => 'card']);
+
+    // 新版提现规则管理
+    Route::prefix('withdrawal-rules')->group(function () {
+        Route::get('/current', [WithdrawalRuleController::class, 'current'])->name('withdrawal-rules.current');
+        Route::get('/status-options', [WithdrawalRuleController::class, 'getStatusOptions'])->name('withdrawal-rules.status-options');
+        Route::get('/level-options', [WithdrawalRuleController::class, 'getLevelOptions'])->name('withdrawal-rules.level-options');
+        Route::get('/method-options', [WithdrawalRuleController::class, 'getMethodOptions'])->name('withdrawal-rules.method-options');
+        Route::get('/currency-options', [WithdrawalRuleController::class, 'getCurrencyOptions'])->name('withdrawal-rules.currency-options');
+        Route::post('/{rule}/toggle-active', [WithdrawalRuleController::class, 'toggleActive'])->name('withdrawal-rules.toggle-active');
+    });
+    Route::apiResource('/withdrawal-rules', WithdrawalRuleController::class)->names('withdrawal-rules')->parameters(['withdrawal-rules' => 'rule']);
+
+    // 新版提现申请管理
+    Route::prefix('withdrawal-v2')->group(function () {
+        Route::get('/statistics', [WithdrawalController::class, 'statistics'])->name('withdrawal-v2.statistics');
+        Route::get('/status-options', [WithdrawalController::class, 'getStatusOptions'])->name('withdrawal-v2.status-options');
+        Route::post('/calculate-fee', [WithdrawalController::class, 'calculateFee'])->name('withdrawal-v2.calculate-fee');
+        Route::post('/apply', [WithdrawalController::class, 'apply'])->name('withdrawal-v2.apply');
+        Route::post('/batch-approve', [WithdrawalController::class, 'batchApprove'])->name('withdrawal-v2.batch-approve');
+        Route::post('/batch-process', [WithdrawalController::class, 'batchProcess'])->name('withdrawal-v2.batch-process');
+        Route::post('/{withdrawal}/approve', [WithdrawalController::class, 'approve'])->name('withdrawal-v2.approve');
+        Route::post('/{withdrawal}/reject', [WithdrawalController::class, 'reject'])->name('withdrawal-v2.reject');
+        Route::post('/{withdrawal}/process', [WithdrawalController::class, 'process'])->name('withdrawal-v2.process');
+        Route::post('/{withdrawal}/complete', [WithdrawalController::class, 'complete'])->name('withdrawal-v2.complete');
+        Route::post('/{withdrawal}/fail', [WithdrawalController::class, 'fail'])->name('withdrawal-v2.fail');
+        Route::post('/{withdrawal}/cancel', [WithdrawalController::class, 'cancel'])->name('withdrawal-v2.cancel');
+    });
+    Route::apiResource('/withdrawal-v2', WithdrawalController::class)->names('withdrawal-v2')->parameters(['withdrawal-v2' => 'withdrawal']);
 });

@@ -29,7 +29,7 @@ class BankCardController extends Controller
             ->when(!empty($request->input('card_type')), function ($q) use ($request) {
                 $q->where('card_type', $request->input('card_type'));
             })
-            ->when(isset($request->input('is_active')) && $request->input('is_active') !== '', function ($q) use ($request) {
+            ->when($request->has('is_active') && $request->input('is_active') !== '', function ($q) use ($request) {
                 $q->where('is_active', $request->input('is_active'));
             })
             ->orderBy('is_default', 'desc')
@@ -107,7 +107,7 @@ class BankCardController extends Controller
         return $this->respondCreated($card, '银行卡创建成功');
     }
 
-    public function show(BankCard $card)
+    public function show(Request $request, BankCard $card)
     {
         $this->authorize('view-bank-cards');
 

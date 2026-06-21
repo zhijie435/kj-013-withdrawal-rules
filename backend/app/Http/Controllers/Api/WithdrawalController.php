@@ -110,7 +110,7 @@ class WithdrawalController extends Controller
         return $this->respondCreated($withdrawal, '提现申请提交成功');
     }
 
-    public function show(Withdrawal $withdrawal)
+    public function show(Request $request, Withdrawal $withdrawal)
     {
         $this->authorize('view-withdrawals');
 
