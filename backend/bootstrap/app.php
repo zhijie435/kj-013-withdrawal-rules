@@ -38,6 +38,7 @@ return Application::configure(basePath: dirname(__DIR__))
                     'message' => '请求参数验证失败',
                     'error_code' => 'VALIDATION_ERROR',
                     'details' => $e->errors(),
+                    'errors' => $e->errors(),
                 ], 422);
             }
         });

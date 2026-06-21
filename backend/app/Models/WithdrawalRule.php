@@ -220,7 +220,7 @@ class WithdrawalRule extends Model
 
     public function withdrawals()
     {
-        return $this->hasMany(Withdrawal::class);
+        return $this->hasMany(Withdrawal::class, 'rule_id');
     }
 
     public function creator()

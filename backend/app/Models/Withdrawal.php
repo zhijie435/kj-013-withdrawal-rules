@@ -116,7 +116,7 @@ class Withdrawal extends Model
 
     public function rule()
     {
-        return $this->belongsTo(WithdrawalRule::class);
+        return $this->belongsTo(WithdrawalRule::class, 'rule_id');
     }
 
     public function bankCard()

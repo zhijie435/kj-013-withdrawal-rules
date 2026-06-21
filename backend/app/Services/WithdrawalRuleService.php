@@ -42,10 +42,7 @@ class WithdrawalRuleService
 
     public function getRuleById(int $id): WithdrawalRule
     {
-        $rule = $this->repository->newModel()
-            ->with(['creator', 'updater'])
-            ->withCount('withdrawals')
-            ->find($id);
+        $rule = $this->repository->findByIdWithRelations($id);
 
         if (!$rule) {
             throw WithdrawalRuleNotFoundException::byId($id);
@@ -183,13 +180,7 @@ class WithdrawalRuleService
             return;
         }
 
-        $query = $this->repository->newModel()->where('code', $code);
-
-        if ($excludeId) {
-            $query->where('id', '!=', $excludeId);
-        }
-
-        if ($query->exists()) {
+        if ($this->repository->codeExists($code, $excludeId)) {
             throw WithdrawalRuleConflictException::codeExists($code);
         }
     }

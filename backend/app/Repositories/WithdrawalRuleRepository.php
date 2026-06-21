@@ -30,6 +30,25 @@ class WithdrawalRuleRepository extends BaseRepository
         return $this->newModel()->where('code', $code)->first();
     }
 
+    public function codeExists(string $code, ?int $excludeId = null): bool
+    {
+        $query = $this->newModel()->where('code', $code);
+
+        if ($excludeId) {
+            $query->where('id', '!=', $excludeId);
+        }
+
+        return $query->exists();
+    }
+
+    public function findByIdWithRelations(int $id, array $with = ['creator', 'updater']): ?WithdrawalRule
+    {
+        return $this->newModel()
+            ->with($with)
+            ->withCount('withdrawals')
+            ->find($id);
+    }
+
     public function getApplicableRule(
         string $userLevel,
         string $currency,

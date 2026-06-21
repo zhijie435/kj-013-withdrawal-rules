@@ -20,6 +20,7 @@ return new class extends Migration
             $table->decimal('daily_limit', 15, 2)->default(0);
             $table->decimal('monthly_limit', 15, 2)->default(0);
             $table->decimal('fee_rate', 7, 4)->default(0);
+            $table->decimal('fixed_fee', 10, 2)->default(0);
             $table->decimal('fee_min', 10, 2)->default(0);
             $table->decimal('fee_max', 10, 2)->default(0);
             $table->integer('settlement_days')->default(1);

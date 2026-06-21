@@ -2,11 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 
 abstract class Controller extends \Illuminate\Routing\Controller
 {
+    use AuthorizesRequests;
+
     protected function perPage(Request $request): int
     {
         $perPage = (int) $request->integer('per_page', 15);
